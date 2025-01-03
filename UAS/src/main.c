@@ -38,6 +38,10 @@
 #define SENSITIVITY 0.185        // Sensitivity for ACS712 5A (185 mV/A)
 #define V_OFFSET (VCC / 2.0)     // Zero-current voltage (2.5V for 5V supply)
 
+/* Buzzer */
+#define BUZZER_PIN PIN4_bm
+#define BUZZER_TIMER TCC0
+
 
 /* Define a task */
 static portTASK_FUNCTION_PROTO(control_led, p_);
@@ -61,16 +65,13 @@ static void adjust_brightness(void);
 static void relay_init(void);
 static void relay_control(bool state);
 
-static void buzzer_control(bool state);
+static void buzzer_init(void);
+static void tone(uint16_t frequency);
 
 /* Define semaphore */
 SemaphoreHandle_t xSemaphore;
 uint16_t counter = 0;
 static volatile int8_t bendera = 0;
-
-/* Buzzer */
-#define BUZZER_PIN PIN4_bm
-#define BUZZER_TIMER TCC0
 
 /* USART */
 static char strbuf[201];
@@ -261,15 +262,7 @@ static void relay_control(bool state) {
 }
 
 /* Buzzer */
-static void buzzer_control(bool state) {
-	if (state) {
-		gpio_set_pin_high(PIN4_bm); // Activate the buzzer
-		} else {
-		gpio_set_pin_low(PIN4_bm); // Deactivate the buzzer
-	}
-}
-
-void buzzer_init(void) {
+static void buzzer_init(void) {
 	// Set the buzzer pin as output
 	PORTC.DIRSET = BUZZER_PIN;
 
@@ -281,7 +274,7 @@ void buzzer_init(void) {
 }
 
 // Function to generate a tone at the specified frequency
-void tone(uint16_t frequency) {
+static void tone(uint16_t frequency) {
 	if (frequency == 0) {
 		BUZZER_TIMER.CTRLA = 0; // Stop the timer
 		PORTC.OUTCLR = BUZZER_PIN; // Turn off the buzzer
