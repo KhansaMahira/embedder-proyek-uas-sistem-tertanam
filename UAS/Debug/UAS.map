@@ -2723,6 +2723,9 @@ Discarded input sections
  .text          0x00000000        0x0 src/main.o
  .data          0x00000000        0x0 src/main.o
  .bss           0x00000000        0x0 src/main.o
+ .text.buzzer_init
+                0x00000000       0x1c src/main.o
+ .text.tone     0x00000000       0x4c src/main.o
  .data.str2     0x00000000        0x2 src/main.o
  .data.str1     0x00000000        0x2 src/main.o
  .data.in       0x00000000        0x1 src/main.o
@@ -3741,7 +3744,7 @@ END GROUP
                 0x00802006                sysfont
  .data.current_brightness.7189
                 0x0080200d        0x2 src/main.o
- .data.USART_SERIAL_OPTIONS.7207
+ .data.USART_SERIAL_OPTIONS.7214
                 0x0080200f        0x7 src/main.o
  *(.gnu.linkonce.d*)
  *(.rodata)
@@ -4012,7 +4015,7 @@ END GROUP
 .debug_sfnames
  *(.debug_sfnames)
 
-.debug_aranges  0x00000000      0x8c0
+.debug_aranges  0x00000000      0x8d0
  *(.debug_aranges)
  .debug_aranges
                 0x00000000       0x28 src/ASF/common/components/display/st7565r/st7565r.o
@@ -4061,12 +4064,12 @@ END GROUP
  .debug_aranges
                 0x000007f8       0x98 src/FreeRTOS/timers.o
  .debug_aranges
-                0x00000890       0x30 src/main.o
+                0x00000890       0x40 src/main.o
 
 .debug_pubnames
  *(.debug_pubnames)
 
-.debug_info     0x00000000    0x178f2
+.debug_info     0x00000000    0x17945
  *(.debug_info .gnu.linkonce.wi.*)
  .debug_info    0x00000000     0x3379 C:/Program Files (x86)/Atmel/Studio/7.0/Packs/atmel/XMEGAA_DFP/1.1.68/gcc/dev/atxmega256a3bu/avrxmega6/crtatxmega256a3bu.o
  .debug_info    0x00003379     0x1945 src/ASF/common/components/display/st7565r/st7565r.o
@@ -4092,9 +4095,9 @@ END GROUP
  .debug_info    0x00011aeb     0x1503 src/FreeRTOS/queue.o
  .debug_info    0x00012fee     0x178a src/FreeRTOS/tasks.o
  .debug_info    0x00014778     0x1082 src/FreeRTOS/timers.o
- .debug_info    0x000157fa     0x20f8 src/main.o
+ .debug_info    0x000157fa     0x214b src/main.o
 
-.debug_abbrev   0x00000000     0x647b
+.debug_abbrev   0x00000000     0x64cb
  *(.debug_abbrev)
  .debug_abbrev  0x00000000     0x30c4 C:/Program Files (x86)/Atmel/Studio/7.0/Packs/atmel/XMEGAA_DFP/1.1.68/gcc/dev/atxmega256a3bu/avrxmega6/crtatxmega256a3bu.o
  .debug_abbrev  0x000030c4      0x2a0 src/ASF/common/components/display/st7565r/st7565r.o
@@ -4120,9 +4123,9 @@ END GROUP
  .debug_abbrev  0x00005768      0x2c3 src/FreeRTOS/queue.o
  .debug_abbrev  0x00005a2b      0x30c src/FreeRTOS/tasks.o
  .debug_abbrev  0x00005d37      0x312 src/FreeRTOS/timers.o
- .debug_abbrev  0x00006049      0x432 src/main.o
+ .debug_abbrev  0x00006049      0x482 src/main.o
 
-.debug_line     0x00000000     0xcf4d
+.debug_line     0x00000000     0xcfc6
  *(.debug_line .debug_line.* .debug_line_end)
  .debug_line    0x00000000      0x39d C:/Program Files (x86)/Atmel/Studio/7.0/Packs/atmel/XMEGAA_DFP/1.1.68/gcc/dev/atxmega256a3bu/avrxmega6/crtatxmega256a3bu.o
  .debug_line    0x0000039d      0xac3 src/ASF/common/components/display/st7565r/st7565r.o
@@ -4148,9 +4151,9 @@ END GROUP
  .debug_line    0x00009f24      0xc3c src/FreeRTOS/queue.o
  .debug_line    0x0000ab60      0xef5 src/FreeRTOS/tasks.o
  .debug_line    0x0000ba55      0x7a3 src/FreeRTOS/timers.o
- .debug_line    0x0000c1f8      0xd55 src/main.o
+ .debug_line    0x0000c1f8      0xdce src/main.o
 
-.debug_frame    0x00000000     0x262c
+.debug_frame    0x00000000     0x264c
  *(.debug_frame)
  .debug_frame   0x00000000       0x68 src/ASF/common/components/display/st7565r/st7565r.o
  .debug_frame   0x00000068       0x94 src/ASF/common/services/clock/xmega/sysclk.o
@@ -4172,9 +4175,9 @@ END GROUP
  .debug_frame   0x00001ccc      0x2f0 src/FreeRTOS/queue.o
  .debug_frame   0x00001fbc      0x43c src/FreeRTOS/tasks.o
  .debug_frame   0x000023f8      0x1bc src/FreeRTOS/timers.o
- .debug_frame   0x000025b4       0x78 src/main.o
+ .debug_frame   0x000025b4       0x98 src/main.o
 
-.debug_str      0x00000000    0x3c9a1
+.debug_str      0x00000000    0x3c9de
  *(.debug_str)
  .debug_str     0x00000000     0x21e4 C:/Program Files (x86)/Atmel/Studio/7.0/Packs/atmel/XMEGAA_DFP/1.1.68/gcc/dev/atxmega256a3bu/avrxmega6/crtatxmega256a3bu.o
  .debug_str     0x000021e4    0x2c641 src/ASF/common/components/display/st7565r/st7565r.o
@@ -4221,10 +4224,10 @@ END GROUP
                               0x1f4db (size before relaxing)
  .debug_str     0x0003a8f3      0x4be src/FreeRTOS/timers.o
                               0x1f0a4 (size before relaxing)
- .debug_str     0x0003adb1     0x1bf0 src/main.o
-                              0x3628c (size before relaxing)
+ .debug_str     0x0003adb1     0x1c2d src/main.o
+                              0x362d3 (size before relaxing)
 
-.debug_loc      0x00000000     0xd19b
+.debug_loc      0x00000000     0xd1f7
  *(.debug_loc)
  .debug_loc     0x00000000      0x7c9 src/ASF/common/components/display/st7565r/st7565r.o
  .debug_loc     0x000007c9      0x2c5 src/ASF/common/services/clock/xmega/sysclk.o
@@ -4246,7 +4249,7 @@ END GROUP
  .debug_loc     0x00008fb7     0x16f9 src/FreeRTOS/queue.o
  .debug_loc     0x0000a6b0     0x1b18 src/FreeRTOS/tasks.o
  .debug_loc     0x0000c1c8      0xc88 src/FreeRTOS/timers.o
- .debug_loc     0x0000ce50      0x34b src/main.o
+ .debug_loc     0x0000ce50      0x3a7 src/main.o
 
 .debug_macinfo
  *(.debug_macinfo)
@@ -4266,7 +4269,7 @@ END GROUP
 .debug_pubtypes
  *(.debug_pubtypes)
 
-.debug_ranges   0x00000000      0xad8
+.debug_ranges   0x00000000      0xae8
  *(.debug_ranges)
  .debug_ranges  0x00000000       0x18 src/ASF/common/components/display/st7565r/st7565r.o
  .debug_ranges  0x00000018       0x30 src/ASF/common/services/clock/xmega/sysclk.o
@@ -4289,9 +4292,9 @@ END GROUP
  .debug_ranges  0x000006f0       0xf8 src/FreeRTOS/queue.o
  .debug_ranges  0x000007e8      0x180 src/FreeRTOS/tasks.o
  .debug_ranges  0x00000968       0xd8 src/FreeRTOS/timers.o
- .debug_ranges  0x00000a40       0x98 src/main.o
+ .debug_ranges  0x00000a40       0xa8 src/main.o
 
-.debug_macro    0x00000000     0xd5c3
+.debug_macro    0x00000000     0xd5cf
  *(.debug_macro)
  .debug_macro   0x00000000      0x276 src/ASF/common/components/display/st7565r/st7565r.o
  .debug_macro   0x00000276      0xa9c src/ASF/common/components/display/st7565r/st7565r.o
@@ -4382,17 +4385,17 @@ END GROUP
  .debug_macro   0x0000cc2e       0x10 src/FreeRTOS/tasks.o
  .debug_macro   0x0000cc3e      0x15b src/FreeRTOS/timers.o
  .debug_macro   0x0000cd99       0x97 src/FreeRTOS/timers.o
- .debug_macro   0x0000ce30      0x4e4 src/main.o
- .debug_macro   0x0000d314       0x34 src/main.o
- .debug_macro   0x0000d348       0x16 src/main.o
- .debug_macro   0x0000d35e       0x46 src/main.o
- .debug_macro   0x0000d3a4       0x18 src/main.o
- .debug_macro   0x0000d3bc       0x28 src/main.o
- .debug_macro   0x0000d3e4       0x1c src/main.o
- .debug_macro   0x0000d400       0x58 src/main.o
- .debug_macro   0x0000d458       0x10 src/main.o
- .debug_macro   0x0000d468       0xf2 src/main.o
- .debug_macro   0x0000d55a       0x69 src/main.o
+ .debug_macro   0x0000ce30      0x4f0 src/main.o
+ .debug_macro   0x0000d320       0x34 src/main.o
+ .debug_macro   0x0000d354       0x16 src/main.o
+ .debug_macro   0x0000d36a       0x46 src/main.o
+ .debug_macro   0x0000d3b0       0x18 src/main.o
+ .debug_macro   0x0000d3c8       0x28 src/main.o
+ .debug_macro   0x0000d3f0       0x1c src/main.o
+ .debug_macro   0x0000d40c       0x58 src/main.o
+ .debug_macro   0x0000d464       0x10 src/main.o
+ .debug_macro   0x0000d474       0xf2 src/main.o
+ .debug_macro   0x0000d566       0x69 src/main.o
 OUTPUT(UAS.elf elf32-avr)
 LOAD linker stubs
 

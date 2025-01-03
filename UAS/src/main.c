@@ -68,6 +68,9 @@ SemaphoreHandle_t xSemaphore;
 uint16_t counter = 0;
 static volatile int8_t bendera = 0;
 
+/* Buzzer */
+#define BUZZER_PIN PIN4_bm
+#define BUZZER_TIMER TCC0
 
 /* USART */
 static char strbuf[201];
@@ -264,6 +267,37 @@ static void buzzer_control(bool state) {
 		} else {
 		gpio_set_pin_low(PIN4_bm); // Deactivate the buzzer
 	}
+}
+
+void buzzer_init(void) {
+	// Set the buzzer pin as output
+	PORTC.DIRSET = BUZZER_PIN;
+
+	// Configure the timer for PWM
+	BUZZER_TIMER.CTRLA = TC_CLKSEL_DIV64_gc; // Clock prescaler
+	BUZZER_TIMER.CTRLB = TC_WGMODE_FRQ_gc | TC0_CCBEN_bm; // Frequency mode, enable output
+	BUZZER_TIMER.PER = 0; // Default period (will be set in tone function)
+	BUZZER_TIMER.CCB = 0; // Default duty cycle
+}
+
+// Function to generate a tone at the specified frequency
+void tone(uint16_t frequency) {
+	if (frequency == 0) {
+		BUZZER_TIMER.CTRLA = 0; // Stop the timer
+		PORTC.OUTCLR = BUZZER_PIN; // Turn off the buzzer
+		return;
+	}
+
+
+	// Calculate the period for the desired frequency
+	uint16_t period = F_CPU / (64 * frequency); // Adjust based on prescaler
+
+	// Set the timer period and duty cycle
+	BUZZER_TIMER.PER = period;
+	BUZZER_TIMER.CCB = period / 2; // 50% duty cycle
+
+	// Start the timer
+	PORTC.OUTSET = BUZZER_PIN; // Ensure the buzzer pin is high
 }
 
 
