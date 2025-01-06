@@ -71,8 +71,8 @@ src/main.d src/main.o: ../src/main.c ../src/asf.h \
  ../src/ASF/xmega/drivers/spi/spi.h \
  ../src/ASF/common/services/spi/xmega_usart_spi/usart_spi.h \
  ../src/ASF/common/services/sleepmgr/xmega/sleepmgr.h \
- ../src/ASF/xmega/drivers/tc/tc.h ../src/ASF/xmega/drivers/twi/twim.h \
- ../src/config/conf_twim.h ../src/ASF/xmega/drivers/twi/twi_common.h \
+ ../src/ASF/xmega/drivers/twi/twim.h ../src/config/conf_twim.h \
+ ../src/ASF/xmega/drivers/twi/twi_common.h \
  ../src/ASF/xmega/drivers/twi/twis.h \
  ../src/ASF/xmega/boards/xmega_a3bu_xplained/led.h \
  c:\program\ files\ (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\stdio.h \
@@ -246,8 +246,6 @@ c:\program\ files\ (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\
 ../src/ASF/common/services/spi/xmega_usart_spi/usart_spi.h:
 
 ../src/ASF/common/services/sleepmgr/xmega/sleepmgr.h:
-
-../src/ASF/xmega/drivers/tc/tc.h:
 
 ../src/ASF/xmega/drivers/twi/twim.h:
 

@@ -8,42 +8,53 @@
 
 #include <asf.h>
 #include <stdio.h>
-#include <inttypes.h>
+#include <ioport.h>
 #include <board.h>
+#include <inttypes.h>
 #include <string.h>
-#include <avr/io.h>
 #include "FreeRTOS\include\FreeRTOS.h"
 #include "FreeRTOS\include\queue.h"
 #include "FreeRTOS\include\task.h"
 #include "FreeRTOS\include\timers.h"
 #include "FreeRTOS\include\semphr.h"
 
+// Define period values for PWM
+#define PWM_ON 200       // PWM active duty cycle
+#define PWM_OFF 0        // PWM off duty cycle
+#define MY_ADC ADCA
+#define MY_ADC_CH ADC_CH0
+#define SENSITIVITY 0.185       // Sensitivity for ACS712 5A (185 mV/A)
+#define V_OFFSET (VCC / 2.0)    // Zero-current voltage (2.5V for 5V supply)
+#define PIN_BUZZER PIN0_bm
+#define PIN_RELAY PIN1_bm          // Buzzer connected to PC1
+#define FILTER_SIZE 10          // Number of samples for the moving average
+#define VCC 3.3                 // Voltage supply in volts
+#define ENERGY_THRESHOLD_BUZZER 1.0  // Threshold energy for buzzer (in Joules)
+#define ENERGY_THRESHOLD_RELAY 6.0   // Threshold energy for relay (in Joules)
+#define ENERGY_UPDATE_INTERVAL_MS 1000 // Update energy every 1 second
 
-/* USART */
 #define USART_SERIAL_EXAMPLE             &USARTC0
 #define USART_SERIAL_EXAMPLE_BAUDRATE    9600
 #define USART_SERIAL_CHAR_LENGTH         USART_CHSIZE_8BIT_gc
 #define USART_SERIAL_PARITY              USART_PMODE_DISABLED_gc
 #define USART_SERIAL_STOP_BIT            false
 
-// Define PWM parameters
-#define PWM_PERIOD 20            // PWM period for controlling brightness
-#define FULL_BRIGHTNESS 20       // Full brightness (100% duty cycle)
-#define HALF_BRIGHTNESS 5        // Half brightness (25% duty cycle)
+static char strbuf[128];
+static double total_energy = 0;   // Total accumulated energy in Joules
 
-// Define ADC and current sensor parameters
-#define MY_ADC ADCA              // Use ADC A
-#define MY_ADC_CH ADC_CH0        // Use channel 0 for ADC
-#define VCC 5.0                  // Sensor operating voltage (5V)
-#define SENSITIVITY 0.185        // Sensitivity for ACS712 5A (185 mV/A)
-#define V_OFFSET (VCC / 2.0)     // Zero-current voltage (2.5V for 5V supply)
+/* Define semaphore */
+static SemaphoreHandle_t xSemaphore;
+static uint16_t counter = 0;
+static volatile int8_t bendera = 0;
 
-/* Buzzer */
-#define BUZZER_PIN PIN4_bm
-#define BUZZER_TIMER TCC0
+/* USART */
+static char strbufusart[201];
+static char reads[100];
+static char in = 'x';
+static char *str1 = "atas ";
+static char *str2 = "bawah ";
 
-
-/* Define a task */
+/* Define tasks */
 static portTASK_FUNCTION_PROTO(control_led, p_);
 
 static void setUpSerial(void);
@@ -52,41 +63,14 @@ static void sendString(char *text);
 static char receiveChar();
 static void receiveString(void);
 
+static void relay_putus(void);
+static void pwm_init(void);
 static void adc_init(void);
 static uint16_t adc_read(void);
-static void pwm_init(void);
-static void buttons_init(void);
+static int convert_adc_to_milliamp(uint16_t adc_value);
+static void calculate_energy_and_check(int current_mA);
 
-static void sensors_init();
-static float read_current(void);
-static void update_brightness(uint16_t compare_value);
-static void adjust_brightness(void);
 
-static void relay_init(void);
-static void relay_control(bool state);
-
-static void buzzer_init(void);
-static void tone(uint16_t frequency);
-
-/* Define semaphore */
-SemaphoreHandle_t xSemaphore;
-uint16_t counter = 0;
-static volatile int8_t bendera = 0;
-
-/* USART */
-static char strbuf[201];
-static char reads[100];
-int result = 0;
-char in = 'x';
-
-/* ADC */
-static char strbufadc[128];
-
-/* USART */
-char *str1 = "atas ";
-char *str2 = "bawah ";
-
-/* USART */
 static void setUpSerial(void) {
 	// Baud rate selection
 	// BSEL = (2000000 / (2^0 * 16*9600) -1 = 12.0208... ~ 12 -> BSCALE = 0
@@ -145,180 +129,129 @@ static void receiveString(void) {
 	}
 }
 
-/* ADC */
-static void adc_init(void) {
-    struct adc_config adc_conf;
-    struct adc_channel_config adcch_conf;
-
-    // Read and modify ADC configuration
-    adc_read_configuration(&MY_ADC, &adc_conf);
-    adcch_read_configuration(&MY_ADC, MY_ADC_CH, &adcch_conf);
-
-    // Configure ADC settings
-    adc_set_conversion_parameters(&adc_conf, ADC_SIGN_OFF, ADC_RES_12, ADC_REF_VCC); // 12-bit resolution, VCC as reference
-    adc_set_conversion_trigger(&adc_conf, ADC_TRIG_MANUAL, 1, 0);                    // Manual trigger
-    adc_set_clock_rate(&adc_conf, 200000UL);                                         // Set clock rate
-
-    // Configure channel input
-    adcch_set_input(&adcch_conf, ADCCH_POS_PIN0, ADCCH_NEG_NONE, 1); // Use PB0 (ADC0)
-
-    // Write configuration back to ADC
-    adc_write_configuration(&MY_ADC, &adc_conf);
-    adcch_write_configuration(&MY_ADC, MY_ADC_CH, &adcch_conf);
+static void buzzer_init(void){
+	PORTC.DIRSET = PIN_BUZZER;
 }
 
-static uint16_t adc_read(void) {
-	uint16_t result;
-	adc_enable(&MY_ADC);                          // Enable ADC
-	adc_start_conversion(&MY_ADC, MY_ADC_CH);     // Start conversion
-	adc_wait_for_interrupt_flag(&MY_ADC, MY_ADC_CH); // Wait for result
-	result = adc_get_result(&MY_ADC, MY_ADC_CH);  // Get result
-	adc_disable(&MY_ADC);                         // Disable ADC to save power
-	return result;
+// Function to disconnect the relay
+static void relay_putus(void) {
+	PORTC.DIRSET = PIN_RELAY; // Configure relay control pin as output
 }
 
 // Function to initialize PWM
 static void pwm_init(void) {
-    // Enable TCC0 for PWM
-    tc_enable(&TCC0);
 
-    // Set PC0 as output for PWM signal
-    PORTC.DIRSET = PIN0_bm;
-
-    // Set Timer/Counter Clock Prescaler to 1024
-    TCC0.CTRLA = TC_CLKSEL_DIV1024_gc;
-
-    // Configure Single Slope PWM mode and enable Compare Channel A
-    TCC0.CTRLB = TC_WGMODE_SS_gc | TC0_CCAEN_bm;
-
-    // Set initial Period (PER) and Compare Value (CCA) for full brightness
-    TCC0.PER = PWM_PERIOD;       // Sets the PWM frequency
-    TCC0.CCA = FULL_BRIGHTNESS;  // Start with 100% brightness
+	// Use a different timer for PWM (e.g., TCC1)
+	TCC1.CTRLA = TC_CLKSEL_DIV1024_gc; // Set prescaler
+	TCC1.CTRLB = TC_WGMODE_SS_gc | TC1_CCAEN_bm; // Single Slope PWM, Enable Compare A
+	TCC1.PER = 1000; // Set period for desired frequency
+	TCC1.CCA = PWM_OFF; // Initially set duty cycle to 0
+	PORTC.DIRSET = PIN0_bm; // Set PC0 as output
 }
 
-// Function to initialize buttons (SW1 and SW2)
-static void buttons_init(void) {
-	// Configure PF1 (SW1) and PF2 (SW2) as input pins
-	PORTF.DIRCLR = PIN1_bm | PIN2_bm;
+// Function to initialize ADC
+static void adc_init(void) {
+	struct adc_config adc_conf;
+	struct adc_channel_config adcch_conf;
 
-	// Enable pull-up resistors for SW1 and SW2
-	PORTF.PIN1CTRL = PORT_OPC_PULLUP_gc; // Pull-up for SW1
-	PORTF.PIN2CTRL = PORT_OPC_PULLUP_gc; // Pull-up for SW2
+	adc_read_configuration(&MY_ADC, &adc_conf);
+	adcch_read_configuration(&MY_ADC, MY_ADC_CH, &adcch_conf);
+
+	adc_set_conversion_parameters(&adc_conf, ADC_SIGN_OFF, ADC_RES_12, ADC_REF_AREFA);
+	adc_set_conversion_trigger(&adc_conf, ADC_TRIG_MANUAL, 1, 0);
+	adc_set_clock_rate(&adc_conf, 200000UL);
+
+	adcch_set_input(&adcch_conf, J2_PIN0, ADCCH_NEG_NONE, 1);
+
+	adc_write_configuration(&MY_ADC, &adc_conf);
+	adcch_write_configuration(&MY_ADC, MY_ADC_CH, &adcch_conf);
 }
 
-/* Sensor, LED, buzzer, relay */
-static void sensors_init() {
-	/*
-	 * Set PC0, PC1, and PC4 as input
-	 * PC0 to control relay
-	 * PC4 to control buzzer
-	 * PC6 to control ACS712
-	 */
-	PORTC.DIRCLR = PIN0_bm | PIN4_bm | PIN6_bm;
+// Function to read ADC value
+static uint16_t adc_read(void) {
+	uint16_t result;
+
+	adc_enable(&MY_ADC);                          // Enable ADC
+	adc_start_conversion(&MY_ADC, MY_ADC_CH);     // Start ADC conversion
+	adc_wait_for_interrupt_flag(&MY_ADC, MY_ADC_CH); // Wait for ADC to finish
+	result = adc_get_result(&MY_ADC, MY_ADC_CH);  // Get ADC result
+	adc_disable(&MY_ADC);                         // Disable ADC (optional for power saving)
+
+	return result;
 }
 
-// Function to calculate current from ADC value
-static float read_current(void) {
-	uint16_t adc_value = adc_read();          // Read ADC value
-	float v_out = (adc_value * VCC) / 4095.0; // Convert ADC value to voltage (12-bit resolution)
-	return (v_out - V_OFFSET) / SENSITIVITY;  // Convert voltage to current
+// Function to convert ADC reading to current in milliamps (mA)
+static int convert_adc_to_milliamp(uint16_t adc_value) {
+	int16_t adjusted_value = adc_value - 2568; // Subtract baseline (calibration value)
+	int current_mA = adjusted_value * 10;      // Each 1 ADC unit corresponds to 10mA
+	if (current_mA < 0) current_mA = 0;        // Ensure no negative currents
+	return current_mA;
 }
 
-// Function to update brightness (PWM duty cycle)
-static void update_brightness(uint16_t compare_value) {
-	TCC0.CCA = compare_value; // Update Compare Value for brightness
-}
 
-// Function to adjust brightness based on button input
-static void adjust_brightness(void) {
-	static uint16_t current_brightness = FULL_BRIGHTNESS; // Track current brightness
+// Function to calculate energy and check thresholds
+static void calculate_energy_and_check(int current_mA) {
+	// Calculate power in Watts (current in mA to Amps)
+	double power = (VCC * current_mA) / 1000.0;
 
-	if (!(PORTF.IN & PIN1_bm)) { // SW1 pressed (PF1 is LOW)
-		if (current_brightness != FULL_BRIGHTNESS) { // Avoid redundant updates
-			current_brightness = FULL_BRIGHTNESS;
-			update_brightness(FULL_BRIGHTNESS); // Set to full brightness
-		}
+	// Add energy (Power × Time, where Time is 1 second)
+	total_energy += power;
+	
+	// Convert total_energy to string with two decimal places
+	snprintf(strbufusart, sizeof(strbufusart), "%.2f", total_energy);
+	sendString(strbufusart);  // Send the formatted string over USART
+
+	// Check thresholds
+	if (total_energy > ENERGY_THRESHOLD_RELAY) {
+		relay_putus(); // Disconnect the load
+		sendChar('0');
+		TCC0.CCA = PWM_OFF; // Disable PWM
+		PORTC.OUTCLR = PIN_BUZZER;
 	}
-	else if (!(PORTF.IN & PIN2_bm)) { // SW2 pressed (PF2 is LOW)
-		if (current_brightness != HALF_BRIGHTNESS) { // Avoid redundant updates
-			current_brightness = HALF_BRIGHTNESS;
-			update_brightness(HALF_BRIGHTNESS); // Set to half brightness
-		}
-	}
-}
-
-/* Relay */
-static void relay_init(void) {
-	ioport_set_pin_dir(PIN0_bm, IOPORT_DIR_OUTPUT);
-	gpio_set_pin_low(PIN0_bm); // Start with the relay deactivated.
-}
-
-static void relay_control(bool state) {
-	if (state) {
-		gpio_set_pin_high(PIN0_bm); // Activate relay
-		} else {
-		gpio_set_pin_low(PIN0_bm); // Deactivate relay
+	else if (total_energy > ENERGY_THRESHOLD_BUZZER) {
+		sendChar('1');
+		TCC0.CCA = PWM_ON; // Activate buzzer
+		PORTC.OUTSET = PIN_BUZZER;
 	}
 }
-
-/* Buzzer */
-static void buzzer_init(void) {
-	// Set the buzzer pin as output
-	PORTC.DIRSET = BUZZER_PIN;
-
-	// Configure the timer for PWM
-	BUZZER_TIMER.CTRLA = TC_CLKSEL_DIV64_gc; // Clock prescaler
-	BUZZER_TIMER.CTRLB = TC_WGMODE_FRQ_gc | TC0_CCBEN_bm; // Frequency mode, enable output
-	BUZZER_TIMER.PER = 0; // Default period (will be set in tone function)
-	BUZZER_TIMER.CCB = 0; // Default duty cycle
-}
-
-// Function to generate a tone at the specified frequency
-static void tone(uint16_t frequency) {
-	if (frequency == 0) {
-		BUZZER_TIMER.CTRLA = 0; // Stop the timer
-		PORTC.OUTCLR = BUZZER_PIN; // Turn off the buzzer
-		return;
-	}
-
-
-	// Calculate the period for the desired frequency
-	uint16_t period = F_CPU / (64 * frequency); // Adjust based on prescaler
-
-	// Set the timer period and duty cycle
-	BUZZER_TIMER.PER = period;
-	BUZZER_TIMER.CCB = period / 2; // 50% duty cycle
-
-	// Start the timer
-	PORTC.OUTSET = BUZZER_PIN; // Ensure the buzzer pin is high
-}
-
 
 static portTASK_FUNCTION_PROTO(control_led, p_) {
 	
 	while (1) {
-		adjust_brightness();          // Check buttons and adjust brightness
-		float current = read_current(); // Read current from sensor
-		printf("Current: %.2f A\n", current); // Print current reading
-		snprintf(strbufadc, sizeof(strbufadc), "Current: %.2f A\n", current);
+		// Read the raw ADC value
+		uint16_t adc_value = adc_read();
+
+		// Convert ADC value to current in milliamps
+		int current_mA = convert_adc_to_milliamp(adc_value);
+
+		// Calculate energy and check thresholds
+		calculate_energy_and_check(current_mA);
+
+		// Display the current value in milliamps
+		snprintf(strbuf, sizeof(strbuf), "Current: %4d mA", current_mA);
 		gfx_mono_draw_string(strbuf, 0, 8, &sysfont);
-		delay_ms(500);                // Delay for smoother output
+		
+		// Display energy in Joules on the LCD
+		int display_energy = (int)(total_energy * 100); // Convert to "cents" of Joules
+		snprintf(strbuf, sizeof(strbuf), "Energy: %d.%02d J", display_energy / 100, display_energy % 100);
+		gfx_mono_draw_string(strbuf, 0, 16, &sysfont);
+
+		delay_ms(1000);  // Delay for 1 second
 	}
 }
 
 
-int main (void)
-{
-	gfx_mono_init();
+int main(void) {
+	// Initialize system clock, board, and peripherals
 	sysclk_init();
 	board_init();
 	pwm_init();
-    buttons_init();
 	adc_init();
-	
+	gfx_mono_init();
+
+	// Turn LCD backlight on
 	gpio_set_pin_high(LCD_BACKLIGHT_ENABLE_PIN);
 	
-	/* USART */
 	PORTC_OUTSET = PIN3_bm; //PC3 as TX
 	PORTC_DIRSET = PIN3_bm; //TX pin as output
 	
@@ -337,7 +270,7 @@ int main (void)
 	usart_init_rs232(USART_SERIAL_EXAMPLE, &USART_SERIAL_OPTIONS);
 	
 	ioport_set_pin_dir(J2_PIN0, IOPORT_DIR_OUTPUT);
-	
+
 	/* Create the task */
 	xTaskCreate(control_led, "", 1000, NULL, tskIDLE_PRIORITY + 1, NULL);	// higher priority
 	/* Semaphore */
@@ -347,5 +280,4 @@ int main (void)
 	/* Start the task */
 	gfx_mono_draw_string("Embedder", 0, 0, &sysfont);
 	vTaskStartScheduler();
-
 }

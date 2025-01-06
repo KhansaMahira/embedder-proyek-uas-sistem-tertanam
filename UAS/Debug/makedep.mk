@@ -40,8 +40,6 @@ src\ASF\xmega\drivers\nvm\nvm_asm.s
 
 src\ASF\xmega\drivers\spi\spi.c
 
-src\ASF\xmega\drivers\tc\tc.c
-
 src\ASF\xmega\drivers\twi\twim.c
 
 src\ASF\xmega\drivers\twi\twis.c
